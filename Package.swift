@@ -14,6 +14,19 @@ var products: [Product] = [.library(name: "DAllCore", targets: ["DAllCore"])]
 targets.append(.executableTarget(name: "DAll", dependencies: ["DAllCore"], path: "Sources/DAll"))
 #endif
 
+#if os(Linux) || os(Windows)
+// Shared GTK4 + Cairo UI (see docs/PORTING.md). DAllUI is toolkit-only: platform executables hand it
+// a `PlatformServices` through `runDAll(services:)`.
+targets.append(.systemLibrary(name: "CGTK", path: "Sources/CGTK", pkgConfig: "gtk4",
+                              providers: [.apt(["libgtk-4-dev"]), .brew(["gtk4"])]))
+targets.append(.target(name: "DAllUI", dependencies: ["DAllCore", "CGTK"], path: "Sources/DAllUI"))
+#endif
+
+#if os(Linux)
+targets.append(.executableTarget(name: "DAllLinux", dependencies: ["DAllCore", "DAllUI", "CGTK"], path: "Sources/DAllLinux"))
+products.append(.executable(name: "DAllLinux", targets: ["DAllLinux"]))
+#endif
+
 let package = Package(
     name: "DAll",
     platforms: [.macOS(.v14)],
