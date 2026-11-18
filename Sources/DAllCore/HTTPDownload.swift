@@ -18,12 +18,20 @@ public enum HTTPDownload {
         let cfg = URLSessionConfiguration.default
         cfg.httpMaximumConnectionsPerHost = maxConnections   // macOS defaults to 6
         cfg.timeoutIntervalForRequest = 30
-        let session = SegmentSession(cfg)
+        let session: DownloadTransport = Transport.curl ?? SegmentSession(cfg)
         defer { session.invalidate() }
 
         do {
             if let (total, response) = await probeRanges(url) {
-                return (try await segmented(url, total, session, onProgress), response)
+                do { return (try await segmented(url, total, session, onProgress), response) }
+                catch is CancellationError { throw CancellationError() }
+                catch let e as URLError where e.code == .cancelled { throw CancellationError() }
+                catch {
+                    // Per-segment retries are exhausted (flaky transport, server throttling parallel
+                    // connections): fall back to one plain stream rather than failing the whole download.
+                    if Task.isCancelled { throw CancellationError() }
+                    return try await single(url, session, onProgress)
+                }
             }
             return try await single(url, session, onProgress)
         } catch let e as URLError where e.code == .cancelled {
@@ -70,7 +78,7 @@ public enum HTTPDownload {
 
     // MARK: Single stream
 
-    private static func single(_ url: URL, _ session: SegmentSession,
+    private static func single(_ url: URL, _ session: DownloadTransport,
                                _ onProgress: @escaping @Sendable (Double) -> Void) async throws -> (URL, URLResponse) {
         let (file, resp) = try await session.download(request(url)) { written, expected in
             if expected > 0 { onProgress(Double(written) / Double(expected)) }
@@ -84,7 +92,7 @@ public enum HTTPDownload {
 
     // MARK: Segments
 
-    private static func segmented(_ url: URL, _ total: Int64, _ session: SegmentSession,
+    private static func segmented(_ url: URL, _ total: Int64, _ session: DownloadTransport,
                                   _ onProgress: @escaping @Sendable (Double) -> Void) async throws -> URL {
         let count = Int(min(Int64(maxConnections), max(2, total / minSegment)))
         let size = (total + Int64(count) - 1) / Int64(count)
@@ -106,11 +114,11 @@ public enum HTTPDownload {
         return try stitch(parts.ordered())
     }
 
-    private static func fetchSegment(_ url: URL, _ start: Int64, _ end: Int64, _ session: SegmentSession,
+    private static func fetchSegment(_ url: URL, _ start: Int64, _ end: Int64, _ session: DownloadTransport,
                                      _ onBytes: @escaping @Sendable (Int64) -> Void) async throws -> URL {
         var lastError: Error = URLError(.unknown)
         for attempt in 0..<maxTries {
-            if attempt > 0 { try await Task.sleep(nanoseconds: 1_000_000_000) }
+            if attempt > 0 { try await Task.sleep(nanoseconds: UInt64(1_000_000_000) << UInt64(attempt - 1)) }   // 1s, 2s, 4s
             do {
                 onBytes(0)
                 let (file, resp) = try await session.download(request(url, range: "bytes=\(start)-\(end)")) { written, _ in onBytes(written) }
@@ -149,14 +157,14 @@ public enum HTTPDownload {
         }
     }
 
-    fileprivate static func tempFile() -> URL {
+    static func tempFile() -> URL {
         FileManager.default.temporaryDirectory.appendingPathComponent("dall-" + UUID().uuidString)
     }
 }
 
 /// A URLSession whose downloads are driven through the delegate (portable: no KVO, no async download API).
 /// Each task's result lands in a file we own; cancelling the awaiting Task cancels the transfer.
-private final class SegmentSession: NSObject, URLSessionDownloadDelegate, @unchecked Sendable {
+final class SegmentSession: NSObject, URLSessionDownloadDelegate, DownloadTransport, @unchecked Sendable {
     private struct Entry {
         var cont: CheckedContinuation<(URL, URLResponse), Error>
         var onBytes: @Sendable (Int64, Int64) -> Void

@@ -20,8 +20,8 @@ public final class Model {
     /// Extra line under a setup step when it needs more from the user, and whether a step is working.
     public private(set) var setupNote: String? { didSet { onChange?() } }
     public private(set) var setupBusy = false { didSet { onChange?() } }
-    public var audioFormat = AudioFormat(rawValue: UserDefaults.standard.string(forKey: "audioFormat") ?? "") ?? .opus {
-        didSet { UserDefaults.standard.set(audioFormat.rawValue, forKey: "audioFormat"); onChange?() }
+    public var audioFormat = AudioFormat(rawValue: AppSettings.store.string("audioFormat") ?? "") ?? .opus {
+        didSet { AppSettings.store.set(audioFormat.rawValue, for: "audioFormat"); onChange?() }
     }
 
     /// Called after any state change.
@@ -53,7 +53,7 @@ public final class Model {
 
     public init(services: PlatformServices) {
         self.services = services
-        if !UserDefaults.standard.bool(forKey: "setupDone"), let first = services.setupSteps.first {
+        if !AppSettings.store.bool("setupDone"), let first = services.setupSteps.first {
             phase = .setup(first)
             settleSetup()
         }
@@ -270,7 +270,7 @@ public final class Model {
     public func skipSetup() { finishSetup(celebrate: false) }
 
     private func finishSetup(celebrate: Bool) {
-        UserDefaults.standard.set(true, forKey: "setupDone")
+        AppSettings.store.set(true, for: "setupDone")
         setupNote = nil
         consumeClipboard()                        // whatever was copied before setup isn't a fresh link
         guard celebrate else { anim(.snappy) { phase = .idle }; return }
@@ -340,12 +340,12 @@ public final class Model {
                 Task { @MainActor in self?.report(p, gen: gen) }
             }
             guard gen == generation, !Task.isCancelled else { try? FileManager.default.removeItem(at: tmp); return }
-            var name = HTTPDownload.fileName(for: resp, url: url)
-            for bad in ["/", "\\", ":", "*", "?", "\"", "<", ">", "|"] { name = name.replacingOccurrences(of: bad, with: "-") }
-            if name.isEmpty || name == "-" { name = url.host ?? "download" }
-            let dest = Self.uniqueDownloadURL(name)
-            try FileManager.default.createDirectory(at: Platform.downloadsDirectory, withIntermediateDirectories: true)
-            try FileManager.default.moveItem(at: tmp, to: dest)
+            let dir = Platform.downloadsDirectory
+            let name = FileNames.sanitize(HTTPDownload.fileName(for: resp, url: url), fallback: url.host ?? "download",
+                                          dirLength: dir.path.count)
+            let dest = FileNames.unique(name, in: dir)
+            try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            try FileNames.move(tmp, to: dest)
             succeed(dest)
         } catch is CancellationError {
         } catch {
@@ -364,7 +364,7 @@ public final class Model {
                 return
             }
             var name = [info.artist, info.title].filter { !$0.isEmpty }.joined(separator: " - ")
-            for bad in ["/", "\\", ":", "*", "?", "\"", "<", ">", "|"] { name = name.replacingOccurrences(of: bad, with: "-") }
+            name = FileNames.sanitize(name, fallback: "track", windows: false)
             name = name.replacingOccurrences(of: "%", with: "%%")        // yt-dlp output template escape
             job.target = "ytsearch1:\(info.artist) \(info.title) audio"
             job.output = name + ".%(ext)s"
@@ -384,17 +384,5 @@ public final class Model {
             }
             fail(out.error); return
         }
-    }
-
-    private static func uniqueDownloadURL(_ name: String) -> URL {
-        let dir = Platform.downloadsDirectory
-        var url = dir.appendingPathComponent(name)
-        let base = url.deletingPathExtension().lastPathComponent, ext = url.pathExtension
-        var n = 1
-        while FileManager.default.fileExists(atPath: url.path) {
-            url = dir.appendingPathComponent(ext.isEmpty ? "\(base) (\(n))" : "\(base) (\(n)).\(ext)")
-            n += 1
-        }
-        return url
     }
 }

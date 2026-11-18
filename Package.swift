@@ -27,6 +27,14 @@ targets.append(.executableTarget(name: "DAllLinux", dependencies: ["DAllCore", "
 products.append(.executable(name: "DAllLinux", targets: ["DAllLinux"]))
 #endif
 
+#if os(Windows)
+// Windows platform services (clipboard, winget setup, tray icon). Win32 only; no UI.
+targets.append(.target(name: "DAllWindowsPlatform", dependencies: ["DAllCore"], path: "Sources/DAllWindowsPlatform"))
+// Windows app: WindowsServices + the shared UI module (Sources/DAllWindows/UIEntry.swift calls runDAll).
+targets.append(.executableTarget(name: "DAllWindows", dependencies: ["DAllCore", "DAllUI", "DAllWindowsPlatform"], path: "Sources/DAllWindows"))
+products.append(.executable(name: "DAllWindows", targets: ["DAllWindows"]))
+#endif
+
 let package = Package(
     name: "DAll",
     platforms: [.macOS(.v14)],
