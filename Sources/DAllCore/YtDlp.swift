@@ -28,15 +28,26 @@ public enum YtDlp {
     /// YouTube clients tried in order; some formats 403 on one but not another.
     public static let clients: [String?] = [nil, "web_embedded", "tv_simply", "web_music"]
 
-    public static func arguments(_ job: Job, temp: String) -> [String] {
+    /// The argument vector, verbatim (never a shell string). `windows` / `ffmpegLocation` default to the running OS;
+    /// tests pass them explicitly. Quoting for CreateProcess happens later, in `WindowsCommandLine`.
+    public static func arguments(_ job: Job, temp: String,
+                                 downloads: String = Platform.nativePath(Platform.downloadsDirectory),
+                                 windows: Bool = Platform.isWindows, ffmpegLocation: String? = nil) -> [String] {
         var a = [
             "--no-playlist", "--no-warnings", "--quiet", "--progress", "--newline", "--no-simulate",
             "--embed-metadata",
             "--progress-template",
             "download:PROG %(progress.downloaded_bytes)s %(progress.total_bytes)s %(progress.total_bytes_estimate)s",
             "--print", "after_move:filepath",
-            "-P", Platform.downloadsDirectory.path, "-P", "temp:" + temp, "-o", job.output,
+            "-P", downloads, "-P", "temp:" + temp, "-o", job.output,
         ]
+        if windows {
+            // yt-dlp's stdout/stderr go through a pipe, where Python would use the ANSI code page and mangle non-ASCII
+            // titles in the printed path and error lines. `--encoding` is what yt-dlp itself uses to encode what it writes.
+            // (PYTHONUTF8/PYTHONIOENCODING are also set in Tools.environment as a second line of defence.)
+            a += ["--encoding", "utf-8"]
+            if let ffmpegLocation { a += ["--ffmpeg-location", ffmpegLocation] }   // winget's ffmpeg is not on this process's PATH
+        }
         if let c = clients[min(job.attempt, clients.count - 1)] {
             a += ["--extractor-args", "youtube:player_client=\(c)"]
         }
@@ -65,63 +76,70 @@ public enum YtDlp {
 /// One yt-dlp invocation. Streams stdout/stderr to the end before reporting, so the final
 /// `after_move:filepath` line and any trailing ERROR can't be lost to a termination race.
 public final class YtDlpRun: @unchecked Sendable {
-    private let process = Process()
     private let lock = NSLock()
+    private var child: ChildProcess?
     private var cancelled = false
 
     public init() {}
 
+    /// Stops yt-dlp and everything it started (ffmpeg).
     public func cancel() {
-        lock.withLock { cancelled = true }
-        if process.isRunning { process.terminate() }
+        let c: ChildProcess? = lock.withLock { cancelled = true; return child }
+        c?.terminate()
+    }
+
+    /// True when a yt-dlp stdout line is the final file path (POSIX `/x`, drive `C:\x` / `C:/x`, or UNC `\\\\host\\x`).
+    static func looksLikePath(_ line: String) -> Bool {
+        if line.hasPrefix("/") || line.hasPrefix("\\\\") { return true }
+        let u = Array(line.utf8)
+        return u.count > 3 && u[1] == 0x3A && (u[2] == 0x5C || u[2] == 0x2F) && (u[0] | 0x20) >= 0x61 && (u[0] | 0x20) <= 0x7A
     }
 
     public func run(_ job: Job, onProgress: @escaping @Sendable (Double) -> Void) async -> YtDlpOutcome {
         guard let bin = Tools.ytdlp else {
             return YtDlpOutcome(status: -1, error: "yt-dlp isn’t installed")
         }
-        let temp = FileManager.default.temporaryDirectory.appendingPathComponent("dall-" + UUID().uuidString).path
+        // Short name: Windows paths are capped at 260 chars and yt-dlp adds long file names inside it.
+        let temp = FileManager.default.temporaryDirectory.appendingPathComponent("dall-" + UUID().uuidString.prefix(12)).path
         try? FileManager.default.createDirectory(atPath: temp, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(atPath: temp) }
 
-        process.executableURL = URL(fileURLWithPath: bin)
-        process.arguments = YtDlp.arguments(job, temp: temp)
-        process.environment = Tools.environment
-        let out = Pipe(), err = Pipe()
-        process.standardOutput = out
-        process.standardError = err
-
-        guard !lock.withLock({ cancelled }), (try? process.run()) != nil else {
-            return YtDlpOutcome(status: -1, error: "Couldn’t start yt-dlp")
-        }
-        if lock.withLock({ cancelled }) { process.terminate() }
+        let ffmpegDir = Platform.isWindows ? Tools.ffmpeg.map { URL(fileURLWithPath: $0).deletingLastPathComponent().path } : nil
+        let args = YtDlp.arguments(job, temp: Platform.nativePath(URL(fileURLWithPath: temp)),
+                                   ffmpegLocation: ffmpegDir.map { Platform.windowsPath(fromURLPath: $0) })
+        guard !lock.withLock({ cancelled }),
+              let proc = try? ChildProcessFactory.spawn(SpawnOptions(executable: bin, arguments: args,
+                                                                      environment: Tools.environment, captureStderr: true))
+        else { return YtDlpOutcome(status: -1, error: "Couldn’t start yt-dlp") }
+        let raced = lock.withLock { () -> Bool in child = proc; return cancelled }
+        if raced { proc.terminate() }
 
         // Both pipes are read to EOF on their own threads: nothing is lost, and neither can fill and stall yt-dlp.
-        let errLines = LineStream(err.fileHandleForReading)
-        let outLines = LineStream(out.fileHandleForReading)
+        let errLines = LineStream { proc.readStderr() }
+        let outLines = LineStream { proc.readStdout() }
         var path: String?
         var tracker = ProgressTracker(weightedVideo: job.kind == .video)
         for await line in outLines.lines {
             if line.hasPrefix("PROG "), let p = tracker.feed(line) { onProgress(p) }
-            else if line.hasPrefix("/") || line.dropFirst().hasPrefix(":\\") { path = line }   // POSIX or Windows path
+            else if Self.looksLikePath(line) { path = line }
         }
         var error: String?
         for await line in errLines.lines where line.hasPrefix("ERROR") { error = line }
-        process.waitUntilExit()
-        return YtDlpOutcome(status: process.terminationStatus, path: path, error: error)
+        let status = proc.wait()
+        return YtDlpOutcome(status: status, path: path, error: error)
     }
 }
 
-/// A pipe as an async sequence of lines (FileHandle.bytes isn't available everywhere).
+/// A pipe as an async sequence of lines. `read` blocks until bytes arrive and returns empty at EOF.
 final class LineStream: @unchecked Sendable {
     let lines: AsyncStream<String>
 
-    init(_ handle: FileHandle) {
+    init(read: @escaping @Sendable () -> Data) {
         lines = AsyncStream { continuation in
             let thread = Thread {
                 var buffer = Data()
                 while true {
-                    let chunk = handle.availableData          // blocks until data or EOF
+                    let chunk = read()
                     if chunk.isEmpty { break }
                     buffer.append(chunk)
                     while let nl = buffer.firstIndex(where: { $0 == 0x0A || $0 == 0x0D }) {

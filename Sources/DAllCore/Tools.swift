@@ -7,14 +7,44 @@ import FoundationNetworking
 public enum Tools {
     static let userAgent = "Mozilla/5.0"
 
+    /// Looks for `tool` in the extra locations, then PATH. On Windows `.exe` is appended and a plain file
+    /// check is used (`isExecutableFile` is unreliable there, e.g. for winget's app-execution-alias reparse points).
     public static func find(_ tool: String) -> String? {
-        let dirs = Platform.extraSearchPaths
-            + (ProcessInfo.processInfo.environment["PATH"] ?? "").split(separator: Character(Platform.pathSeparator)).map(String.init)
-        for dir in dirs {
-            let path = (dir as NSString).appendingPathComponent(tool + Platform.exeSuffix)
-            if FileManager.default.isExecutableFile(atPath: path) { return path }
+        resolve(tool, dirs: Platform.extraSearchPaths + pathEntries(ProcessInfo.processInfo.environment),
+                windows: Platform.isWindows, exists: defaultExists(windows: Platform.isWindows))
+    }
+
+    static func defaultExists(windows: Bool) -> (String) -> Bool {
+        { path in
+            var isDir: ObjCBool = false
+            guard FileManager.default.fileExists(atPath: path, isDirectory: &isDir), !isDir.boolValue else { return false }
+            return windows || FileManager.default.isExecutableFile(atPath: path)
+        }
+    }
+
+    static func resolve(_ tool: String, dirs: [String], windows: Bool, exists: (String) -> Bool) -> String? {
+        let name = windows && !tool.lowercased().hasSuffix(".exe") ? tool + ".exe" : tool
+        for dir in dirs where !dir.isEmpty {
+            let path = windows ? joinWindows(dir, name) : (dir.hasSuffix("/") ? dir + name : dir + "/" + name)
+            if exists(path) { return path }
         }
         return nil
+    }
+
+    private static func joinWindows(_ dir: String, _ name: String) -> String {
+        dir.hasSuffix("\\") || dir.hasSuffix("/") ? dir + name : dir + "\\" + name
+    }
+
+    /// PATH split into folders. The variable is `Path` on Windows (and env lookups there are case-insensitive);
+    /// entries may be quoted or empty.
+    static func pathEntries(_ env: [String: String], windows: Bool = Platform.isWindows) -> [String] {
+        let value = windows ? env.first { $0.key.uppercased() == "PATH" }?.value : env["PATH"]
+        let sep: Character = windows ? ";" : ":"
+        return (value ?? "").split(separator: sep).map {
+            var d = String($0).trimmingCharacters(in: .whitespaces)
+            if windows, d.count >= 2, d.hasPrefix("\""), d.hasSuffix("\"") { d = String(d.dropFirst().dropLast()) }
+            return d
+        }.filter { !$0.isEmpty }
     }
 
     public static var ytdlp: String? { find("yt-dlp") }
@@ -22,10 +52,19 @@ public enum Tools {
     public static var toolsInstalled: Bool { ytdlp != nil && ffmpeg != nil }
 
     /// GUI apps get a bare PATH; add the usual tool locations so yt-dlp can find ffmpeg and deno.
+    /// On Windows also force UTF-8 for Python's piped stdout/stderr (otherwise the ANSI code page mangles titles).
     public static var environment: [String: String] {
-        var e = ProcessInfo.processInfo.environment
-        let key = Platform.isWindows ? (e.keys.first { $0.uppercased() == "PATH" } ?? "Path") : "PATH"
-        e[key] = (Platform.extraSearchPaths + [e[key] ?? ""]).joined(separator: Platform.pathSeparator)
+        environment(from: ProcessInfo.processInfo.environment, extra: Platform.extraSearchPaths, windows: Platform.isWindows)
+    }
+
+    static func environment(from base: [String: String], extra: [String], windows: Bool) -> [String: String] {
+        var e = base
+        let key = windows ? (e.keys.first { $0.uppercased() == "PATH" } ?? "Path") : "PATH"
+        e[key] = (extra + [e[key] ?? ""]).joined(separator: windows ? ";" : ":")
+        if windows {
+            e["PYTHONUTF8"] = "1"
+            e["PYTHONIOENCODING"] = "utf-8"
+        }
         return e
     }
 
@@ -40,28 +79,21 @@ public enum Tools {
     static func captureData(_ bin: String, _ args: [String], stdin: Data? = nil, timeout: TimeInterval = 25) async -> Data? {
         await withCheckedContinuation { c in
             DispatchQueue.global().async {
-                let p = Process()
-                p.executableURL = URL(fileURLWithPath: bin)
-                p.arguments = args
-                p.environment = environment
-                let out = Pipe(), inPipe = Pipe()
-                p.standardOutput = out
-                p.standardError = FileHandle.nullDevice
-                p.standardInput = stdin == nil ? FileHandle.nullDevice : inPipe
-                guard (try? p.run()) != nil else { c.resume(returning: nil); return }
-                let killer = DispatchWorkItem { if p.isRunning { p.terminate() } }
-                DispatchQueue.global().asyncAfter(deadline: .now() + timeout, execute: killer)
-                if let stdin {
-                    // Feed stdin from its own thread so a full pipe can't deadlock the read below.
-                    DispatchQueue.global().async {
-                        try? inPipe.fileHandleForWriting.write(contentsOf: stdin)
-                        try? inPipe.fileHandleForWriting.close()
-                    }
+                guard let child = try? ChildProcessFactory.spawn(SpawnOptions(executable: bin, arguments: args,
+                                                                               environment: environment, stdin: stdin)) else {
+                    c.resume(returning: nil); return
                 }
-                let data = out.fileHandleForReading.readDataToEndOfFile()
-                p.waitUntilExit()
+                let killer = DispatchWorkItem { child.terminate() }
+                DispatchQueue.global().asyncAfter(deadline: .now() + timeout, execute: killer)
+                var data = Data()
+                while true {
+                    let chunk = child.readStdout()
+                    if chunk.isEmpty { break }
+                    data.append(chunk)
+                }
+                let status = child.wait()
                 killer.cancel()
-                c.resume(returning: p.terminationStatus == 0 ? data : nil)
+                c.resume(returning: status == 0 ? data : nil)
             }
         }
     }
@@ -156,9 +188,14 @@ extension Optional {
     }
 }
 
-/// Small portable wrapper over completion-handler URLSession (the async APIs differ across platforms).
+/// Small portable wrapper over the HTTP transport (see Transport.swift for which one is used where).
 enum HTTP {
     static func fetch(_ request: URLRequest) async throws -> (Data, URLResponse) {
+        if let curl = Transport.curl { return try await curl.fetch(request) }
+        return try await fetchURLSession(request)
+    }
+
+    static func fetchURLSession(_ request: URLRequest) async throws -> (Data, URLResponse) {
         let box = TaskBox()
         return try await withTaskCancellationHandler {
             try await withCheckedThrowingContinuation { c in
