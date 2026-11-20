@@ -29,7 +29,15 @@ $stage = Join-Path "dist" "Pea-$Version-windows-x64"
 Remove-Item -Recurse -Force $stage -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force $stage | Out-Null
 Copy-Item $exe $stage
-Copy-Item "assets/Pea.ico" $stage -ErrorAction SilentlyContinue
+Copy-Item "assets/Pea.ico","NOTICE.md","LICENSE" $stage -ErrorAction SilentlyContinue
+
+# yt-dlp and ffmpeg ship next to the exe (in .\tools) so nothing has to be installed.
+$toolsDir = Join-Path $stage "tools"
+New-Item -ItemType Directory -Force $toolsDir | Out-Null
+$bash = (Get-Command bash -ErrorAction SilentlyContinue).Source
+if (-not $bash) { throw "bash (Git for Windows) is needed to run scripts/fetch-tools.sh" }
+& $bash scripts/fetch-tools.sh windows ($toolsDir -replace '\\','/')
+if ($LASTEXITCODE -ne 0) { throw "fetching yt-dlp / ffmpeg failed" }
 
 # Where the Swift runtime DLLs live: next to the compiler (toolchain) and in the installer's runtime folders.
 $searchDirs = @($bin, (Split-Path (Get-Command swiftc).Source -Parent))

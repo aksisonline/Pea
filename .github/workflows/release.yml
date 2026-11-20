@@ -46,6 +46,8 @@ jobs:
 
   windows:
     name: Windows (.zip)
+    # Not shipping yet: the Windows UI hasn't been built or run on a real machine. See docs/WINDOWS.md.
+    continue-on-error: true
     runs-on: windows-2025
     steps:
       - uses: actions/checkout@v4
@@ -63,7 +65,7 @@ jobs:
   publish:
     name: Publish release
     needs: [macos, linux, windows]
-    if: ${{ !cancelled() && (needs.macos.result == 'success' || needs.linux.result == 'success' || needs.windows.result == 'success') }}
+    if: ${{ !cancelled() && needs.macos.result == 'success' && needs.linux.result == 'success' }}
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4

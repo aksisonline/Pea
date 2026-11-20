@@ -62,6 +62,7 @@ public final class Model {
     /// Starts watching the clipboard. Call once the UI is up.
     public func start() {
         guard monitor == nil else { return }
+        Task.detached(priority: .utility) { await Tools.refreshYtDlp() }
         monitor = Task { [weak self] in
             while !Task.isCancelled {
                 self?.refreshClipboard()

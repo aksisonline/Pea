@@ -26,10 +26,14 @@ jobs:
         with:
           swift-version: '6.1'
       - run: swift --version
+      - name: Install GTK 4 (Linux UI)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libgtk-4-dev pkg-config
       - name: Build PeaCore
         run: swift build --target PeaCore
-      - name: Test
-        run: swift test
+      - name: Test (portable core only; the UI targets need GTK, which only the Linux job installs)
+        shell: bash
+        run: swift build --build-tests --target PeaCoreTests && swift test --skip-build
 
   macos-app:
     name: macOS app

@@ -92,9 +92,28 @@ public enum Platform {
         return dir.hasSuffix(sep) || (isWindows && dir.hasSuffix("/")) ? dir + name : dir + sep + name
     }
 
+    /// Where the helper programs shipped inside the app live: `Pea.app/Contents/Resources/bin` on macOS,
+    /// `<install dir>/tools` on Linux (.deb) and Windows (zip). Nothing needs installing.
+    public static var bundledToolDirs: [String] {
+        var dirs: [String] = []
+        if let r = Bundle.main.resourceURL { dirs.append(nativePath(r.appendingPathComponent("bin", isDirectory: true))) }
+        if let exe = Bundle.main.executableURL?.resolvingSymlinksInPath().deletingLastPathComponent() {
+            dirs.append(nativePath(exe.appendingPathComponent("tools", isDirectory: true)))
+        }
+        return dirs
+    }
+
+    /// A user-writable copy of yt-dlp that the app keeps up to date (sites change faster than app releases).
+    public static var updatedToolsDirectory: URL { supportDirectory.appendingPathComponent("bin", isDirectory: true) }
+
+    /// Tools to try first: the self-updated yt-dlp, then what ships inside the app, then whatever the system has.
+    public static var extraSearchPaths: [String] {
+        [nativePath(updatedToolsDirectory)] + bundledToolDirs + systemSearchPaths
+    }
+
     /// Directories searched for yt-dlp / ffmpeg in addition to PATH (GUI apps often get a bare PATH; and a
     /// process never sees a PATH change made after it started, e.g. by `winget install`).
-    public static var extraSearchPaths: [String] {
+    private static var systemSearchPaths: [String] {
         let home = NSHomeDirectory()
         #if os(Windows)
         let env = ProcessInfo.processInfo.environment

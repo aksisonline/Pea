@@ -13,16 +13,24 @@ references, b-roll and music you are licensed to use). Donations are welcome but
 
 ## Credits
 
-Pea is built on the work of others. It does not bundle or modify any of the programs below; it runs them if they are
-installed on your computer.
+Pea is built on the work of others. The downloads include **unmodified** copies of yt-dlp and FFmpeg so that nothing
+else has to be installed. Pea runs them as separate programs; it does not link against them. Exact versions and
+where they came from are listed in `VERSIONS.txt` next to the binaries (inside the app: `Pea.app/Contents/Resources/bin`,
+on Linux `/opt/pea/tools`, on Windows the `tools` folder). yt-dlp is also kept up to date automatically in your user folder.
 
 | Project | Used for | Licence |
 | --- | --- | --- |
 | [yt-dlp](https://github.com/yt-dlp/yt-dlp) | Finding and fetching media from video and audio sites | Unlicense |
-| [FFmpeg](https://ffmpeg.org) | Merging streams, converting audio, embedding cover art | LGPL / GPL |
+| [FFmpeg](https://ffmpeg.org) | Merging streams, converting audio, embedding cover art | GPL-3.0+ (static builds, see below) |
 | [Swift](https://www.swift.org) and SwiftPM | The language and toolchain | Apache-2.0 |
 | [GTK 4](https://www.gtk.org), [Cairo](https://www.cairographics.org), [Pango](https://pango.gnome.org) | The Linux and Windows interface | LGPL-2.1+ |
-| [curl](https://curl.se) | HTTP transport on Windows | curl licence |
+| [curl](https://curl.se) | HTTP transport on Windows (ships with Windows) | curl licence |
+
+FFmpeg binaries are built by third parties, who publish the corresponding source and build scripts:
+[Martin Riedl](https://ffmpeg.martin-riedl.de) (macOS), [John Van Sickle](https://johnvansickle.com/ffmpeg/) (Linux),
+[gyan.dev](https://www.gyan.dev/ffmpeg/builds/) (Windows). You can replace the bundled `ffmpeg` with your own build.
+FFmpeg is a trademark of Fabrice Bellard. yt-dlp is released into the public domain under the
+[Unlicense](https://github.com/yt-dlp/yt-dlp/blob/master/LICENSE).
 
 Inspiration:
 

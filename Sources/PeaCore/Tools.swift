@@ -47,6 +47,34 @@ public enum Tools {
         }.filter { !$0.isEmpty }
     }
 
+    /// Keeps a user-writable copy of the bundled yt-dlp and updates it in place at most once a day: YouTube and
+    /// friends break old versions often. Silent; failures just leave the working copy as it is.
+    public static func refreshYtDlp() async {
+        let windows = Platform.isWindows
+        let name = windows ? "yt-dlp.exe" : "yt-dlp"
+        let fm = FileManager.default
+        guard let bundled = resolve("yt-dlp", dirs: Platform.bundledToolDirs, windows: windows,
+                                    exists: defaultExists(windows: windows)) else { return }
+        let dir = Platform.updatedToolsDirectory
+        let copy = dir.appendingPathComponent(name).path
+        try? fm.createDirectory(at: dir, withIntermediateDirectories: true)
+
+        // yt-dlp versions are dates (2026.10.26), so plain string order is version order.
+        let shipped = await capture(bundled, ["--version"], timeout: 30) ?? ""
+        let current = fm.fileExists(atPath: copy) ? (await capture(copy, ["--version"], timeout: 30) ?? "") : ""
+        if current.isEmpty || current < shipped {      // first run, broken copy, or the app shipped a newer one
+            try? fm.removeItem(atPath: copy)
+            try? fm.copyItem(atPath: bundled, toPath: copy)
+        }
+        guard fm.fileExists(atPath: copy) else { return }
+
+        let stamp = dir.appendingPathComponent(".last-update").path
+        if let d = try? fm.attributesOfItem(atPath: stamp)[.modificationDate] as? Date, -d.timeIntervalSinceNow < 86_400 { return }
+        _ = await capture(copy, ["-U", "--no-warnings"], timeout: 120)
+        fm.createFile(atPath: stamp, contents: Data())
+        try? fm.setAttributes([.modificationDate: Date()], ofItemAtPath: stamp)
+    }
+
     public static var ytdlp: String? { find("yt-dlp") }
     public static var ffmpeg: String? { find("ffmpeg") }
     public static var toolsInstalled: Bool { ytdlp != nil && ffmpeg != nil }

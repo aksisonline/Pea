@@ -1,6 +1,6 @@
 #!/bin/zsh
 # Builds Pea.app next to this script.
-#   ./bundle.sh                    debug-free release build for this Mac's architecture
+#   ./bundle.sh                    release build for this Mac's architecture, with yt-dlp + ffmpeg inside
 #   ./bundle.sh --universal        arm64 + x86_64
 #   ./bundle.sh --install          also copies it to /Applications
 #   ./bundle.sh --dist 1.0.0       universal, plus dist/Pea-1.0.0-macOS.zip and .dmg
@@ -24,6 +24,16 @@ APP="Pea.app"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN" "$APP/Contents/MacOS/Pea"
+
+# yt-dlp and ffmpeg ship inside the app so nothing has to be installed. Downloaded once into .tools-cache.
+# (PEA_SKIP_TOOLS=1 skips this for quick dev builds; the app then falls back to tools on the system.)
+if [[ -z "$PEA_SKIP_TOOLS" ]]; then
+  TOOLS=".tools-cache/macos"
+  [[ -x "$TOOLS/ffmpeg" && -x "$TOOLS/yt-dlp" ]] || scripts/fetch-tools.sh macos "$TOOLS"
+  mkdir -p "$APP/Contents/Resources/bin"
+  cp "$TOOLS/yt-dlp" "$TOOLS/ffmpeg" "$TOOLS/VERSIONS.txt" "$APP/Contents/Resources/bin/"
+  cp NOTICE.md LICENSE "$APP/Contents/Resources/"
+fi
 
 # Icon: the Liquid Glass .icon is compiled into Assets.car (macOS 26+); the .icns is the fallback for older systems.
 TMP="$(mktemp -d)"

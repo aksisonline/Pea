@@ -3,7 +3,7 @@
 <img src="https://shieldcn.dev/header/glow.svg?title=Pea&subtitle=Copy+a+link.+Click+the+circle.+Drag+the+file+out.&logo=https://raw.githubusercontent.com/aksisonline/Pea/main/assets/icon.png&theme=green&size=banner" alt="Pea" width="100%" />
 
 <a href="https://github.com/aksisonline/Pea/releases/latest/download/Pea-macOS.dmg"><img src="https://shieldcn.dev/badge/Download-macOS-22c55e.svg?logo=apple&size=lg" alt="Download for macOS" /></a>
-<a href="https://github.com/aksisonline/Pea/releases/latest/download/Pea-windows-x64.zip"><img src="https://shieldcn.dev/badge/Download-Windows-22c55e.svg?logo=windows&size=lg" alt="Download for Windows" /></a>
+<img src="https://shieldcn.dev/badge/Windows-coming_soon-71717a.svg?logo=windows&size=lg&variant=outline" alt="Windows: coming soon" />
 <a href="https://github.com/aksisonline/Pea/releases/latest/download/Pea-linux-amd64.deb"><img src="https://shieldcn.dev/badge/Download-Linux-22c55e.svg?logo=linux&size=lg" alt="Download for Linux" /></a>
 
 <img src="https://shieldcn.dev/github/release/aksisonline/Pea.svg?variant=secondary" alt="Latest release" />
@@ -35,10 +35,10 @@
 | | |
 | --- | --- |
 | **macOS 14+** | Open the `.dmg` and drag Pea to Applications. It isn't notarised, so the first time, right-click → **Open**. |
-| **Windows 10+** | Unzip anywhere and run `PeaWindows.exe`. |
+| **Windows** | Coming soon. |
 | **Linux** | `sudo apt install ./Pea-linux-amd64.deb` |
 
-Pea runs [`yt-dlp`](https://github.com/yt-dlp/yt-dlp) and [`ffmpeg`](https://ffmpeg.org); the first-run screen offers to install them for you. Prefer to build it yourself? `./bundle.sh` on macOS, or `swift build -c release` anywhere.
+**Nothing else to install.** [yt-dlp](https://github.com/yt-dlp/yt-dlp) and [ffmpeg](https://ffmpeg.org) are inside, and yt-dlp quietly keeps itself current. Prefer to build it yourself? `./bundle.sh` on macOS, or `swift build -c release` anywhere.
 
 ## Please use it responsibly
 
