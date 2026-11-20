@@ -11,7 +11,7 @@ concurrency:
 
 jobs:
   core:
-    name: DAllCore (${{ matrix.name }})
+    name: PeaCore (${{ matrix.name }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -26,8 +26,8 @@ jobs:
         with:
           swift-version: '6.1'
       - run: swift --version
-      - name: Build DAllCore
-        run: swift build --target DAllCore
+      - name: Build PeaCore
+        run: swift build --target PeaCore
       - name: Test
         run: swift test
 
@@ -39,7 +39,7 @@ jobs:
       - uses: SwiftyLab/setup-swift@v1
         with:
           swift-version: '6.1'
-      - run: swift build -c release --product DAll
+      - run: swift build -c release --product Pea
 
   windows-app:
     name: Windows app + portable zip
@@ -55,6 +55,6 @@ jobs:
         run: ./scripts/package-windows.ps1 -Version "0.0.0-ci.${{ github.run_number }}"
       - uses: actions/upload-artifact@v4
         with:
-          name: D-All-windows-x64
-          path: dist/D-All-*-windows-x64.zip
+          name: Pea-windows-x64
+          path: dist/Pea-*-windows-x64.zip
           if-no-files-found: error

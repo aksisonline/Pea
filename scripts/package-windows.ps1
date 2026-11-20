@@ -1,16 +1,16 @@
 <#
 .SYNOPSIS
-  Builds D-All for Windows and produces a portable zip (exe + the Swift runtime DLLs it needs).
+  Builds Pea for Windows and produces a portable zip (exe + the Swift runtime DLLs it needs).
 .EXAMPLE
   ./scripts/package-windows.ps1 -Version 1.0.0
-  # -> dist/D-All-1.0.0-windows-x64.zip   (unzip anywhere, run DAllWindows.exe)
+  # -> dist/Pea-1.0.0-windows-x64.zip   (unzip anywhere, run PeaWindows.exe)
 .NOTES
   Needs the Swift toolchain on PATH (swift, swiftc, llvm-readobj). Not tested on a real Windows machine by its author:
   if the DLL scan misses something, the app fails to start with "swiftCore.dll was not found"; add -ExtraDll names.
 #>
 param(
   [string]$Version = "0.0.0",
-  [string]$Product = "DAllWindows",
+  [string]$Product = "PeaWindows",
   [string[]]$ExtraDll = @(),
   [switch]$StaticStdlib      # try `-static-stdlib`: fewer DLLs to ship, bigger exe; needs the static libs in the SDK
 )
@@ -25,7 +25,7 @@ $bin = (& swift build -c release --show-bin-path).Trim()
 $exe = Join-Path $bin "$Product.exe"
 if (-not (Test-Path $exe)) { throw "missing $exe" }
 
-$stage = Join-Path "dist" "D-All-$Version-windows-x64"
+$stage = Join-Path "dist" "Pea-$Version-windows-x64"
 Remove-Item -Recurse -Force $stage -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force $stage | Out-Null
 Copy-Item $exe $stage
@@ -64,7 +64,7 @@ while ($queue.Count -gt 0) {
 }
 
 Copy-Item "docs/WINDOWS.md" (Join-Path $stage "README.md") -ErrorAction SilentlyContinue
-$zip = Join-Path "dist" "D-All-$Version-windows-x64.zip"
+$zip = Join-Path "dist" "Pea-$Version-windows-x64.zip"
 Remove-Item $zip -ErrorAction SilentlyContinue
 Compress-Archive -Path "$stage\*" -DestinationPath $zip
 Write-Host "Built $zip"
