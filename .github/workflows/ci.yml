@@ -34,7 +34,7 @@ jobs:
       - name: Test
         if: runner.os != 'Windows'
         run: swift test
-      - name: Compile core tests (Windows: the UI targets need GTK for Windows, so tests aren't run here yet)
+      - name: Compile core tests (Windows - the UI targets need GTK for Windows, so tests are not run here yet)
         if: runner.os == 'Windows'
         run: swift build --target PeaCoreTests
 
@@ -50,6 +50,7 @@ jobs:
 
   windows-app:
     name: Windows app + portable zip
+    continue-on-error: true   # not shipping yet, see docs/WINDOWS.md
     needs: core
     runs-on: windows-2025
     steps:
