@@ -33,7 +33,7 @@ jobs:
         run: swift build --target PeaCore
       - name: Test (portable core only; the UI targets need GTK, which only the Linux job installs)
         shell: bash
-        run: swift build --build-tests --target PeaCoreTests && swift test --skip-build
+        run: swift build --target PeaCoreTests && swift test --skip-build
 
   macos-app:
     name: macOS app

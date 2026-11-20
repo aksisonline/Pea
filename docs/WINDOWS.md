@@ -1,6 +1,6 @@
 # Pea on Windows
 
-Status: **not released yet.** The Windows UI (shared GTK 4 code) still has to be built against GTK for Windows and run on a real machine; the Windows release job is disabled until then. Written and reviewed without access to a Windows machine.** Everything platform-neutral is unit-tested
+Status: **not released yet.** The Windows UI (shared GTK 4 code) still has to be built against GTK for Windows and run on a real machine; the Windows release job is disabled until then. It was written and reviewed without access to a Windows machine. Everything platform-neutral is unit-tested
 (Linux, Docker); the Win32 files are only type-checked against a hand-written WinSDK stub. See "What is verified".
 
 ## Run / build
