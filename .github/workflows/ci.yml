@@ -31,9 +31,12 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y libgtk-4-dev pkg-config
       - name: Build PeaCore
         run: swift build --target PeaCore
-      - name: Test (portable core only; the UI targets need GTK, which only the Linux job installs)
-        shell: bash
-        run: swift build --target PeaCoreTests && swift test --skip-build
+      - name: Test
+        if: runner.os != 'Windows'
+        run: swift test
+      - name: Compile core tests (Windows: the UI targets need GTK for Windows, so tests aren't run here yet)
+        if: runner.os == 'Windows'
+        run: swift build --target PeaCoreTests
 
   macos-app:
     name: macOS app
