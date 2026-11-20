@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Pea
+Comment=Minimal media downloader
+Exec=pea
+Icon=pea
+Terminal=false
+Categories=Network;Utility;
+StartupWMClass=pea

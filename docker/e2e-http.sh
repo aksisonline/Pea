@@ -5,7 +5,7 @@ OUT=${1:-/shots}; URL=${2:-https://proof.ovh.net/files/10Mb.dat}
 export DISPLAY=:99 HOME=$(mktemp -d)
 mkdir -p $OUT
 pgrep Xvfb >/dev/null || { Xvfb :99 -screen 0 400x400x24 >/dev/null 2>&1 & sleep 1; }
-BIN=${BIN:-/build/debug/DAllLinux}
+BIN=${BIN:-/build/debug/PeaLinux}
 $BIN >$OUT/app.log 2>&1 &
 APP=$!
 shot() { import -window root -crop 232x266+0+0 +repage $OUT/$1.png; }

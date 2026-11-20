@@ -1,4 +1,4 @@
-# Porting D-All to Linux (and the shared UI layer for Windows)
+# Porting Pea to Linux (and the shared UI layer for Windows)
 
 ## Decision: direct GTK4 + Cairo/Pango through Swift C interop
 
@@ -20,7 +20,7 @@ painted by `Scene` (layout identical to `Views.swift`: 232x266, 172 px ring of 7
 hover capsules, pill, tooltips and cursor live in the scene. Animations are small `Chan` tweens on the frame clock,
 which only runs while something moves. `Model.animate(motion)` selects the curve for the transition that follows.
 
-Layout: `Sources/CGTK` (module map), `Sources/DAllUI` (shared), `Sources/DAllLinux` (`LinuxServices`,
+Layout: `Sources/CGTK` (module map), `Sources/PeaUI` (shared), `Sources/PeaLinux` (`LinuxServices`,
 StatusNotifierItem tray, `main.swift`). `docs/UI-CONTRACT.md` is the Windows hand-off.
 
 ## Verified (Linux container, Xvfb, aarch64, GTK 4.14)
@@ -34,7 +34,7 @@ untouched). Scripts: `docker/shots.sh` (contact sheet), `docker/e2e-*.sh`.
 
 ## Degraded / differences (explicit)
 - Not verified on a real desktop: Wayland compositors, a real tray host (KDE / GNOME AppIndicator), a real file manager
-  as drop target, HiDPI, the xdg-portal accent colour (fallback #0a84ff; `DALL_ACCENT` overrides), dropping INTO the
+  as drop target, HiDPI, the xdg-portal accent colour (fallback #0a84ff; `PEA_ACCENT` overrides), dropping INTO the
   window, the tray-mode toggle UI, the video path through yt-dlp (only audio run live), the setup-step installer.
 - Tray: no right-click menu (no dbusmenu): right-click shows the window, middle-click quits. Needs a SNI host (GNOME needs
   the AppIndicator extension); otherwise window-only and the bottom-left toggle is hidden.
@@ -52,7 +52,7 @@ untouched). Scripts: `docker/shots.sh` (contact sheet), `docker/e2e-*.sh`.
 ## Windows notes
 GTK4 on Windows via MSYS2/gvsbuild. `GTKClipboard`, drag/drop and `gdk_toplevel_begin_move` use portable GDK API but
 were not exercised on Windows. The tray is a Windows-shell job (`app.trayAvailable = true` after creating the icon).
-Only `Accent.portal()` is `#if os(Linux)` inside DAllUI.
+Only `Accent.portal()` is `#if os(Linux)` inside PeaUI.
 
 ## Packaging
 `scripts/package-linux.sh [version]` builds a release binary in the container and a `.deb` (`packaging/linux/` has the

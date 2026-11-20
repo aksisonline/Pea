@@ -1,4 +1,5 @@
 .build/
 *.app/
+dist/
 .DS_Store
 .worktrees/

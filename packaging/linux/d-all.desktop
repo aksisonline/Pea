@@ -1,9 +1,0 @@
-[Desktop Entry]
-Type=Application
-Name=D-All
-Comment=Minimal media downloader
-Exec=d-all
-Icon=d-all
-Terminal=false
-Categories=Network;Utility;
-StartupWMClass=d-all

@@ -5,7 +5,7 @@ export DISPLAY=:99 HOME=$(mktemp -d)
 mkdir -p $OUT
 pgrep Xvfb >/dev/null || { Xvfb :99 -screen 0 700x400x24 >/dev/null 2>&1 & sleep 1; }
 head -c 300000 /dev/urandom > /tmp/dragme.dat
-DALL_DEBUG=done-file /build/debug/DAllLinux >$OUT/drag-app.log 2>&1 &
+PEA_DEBUG=done-file /build/debug/PeaLinux >$OUT/drag-app.log 2>&1 &
 APP=$!
 sleep 1
 GTK_A11Y=none python3 /src/docker/drop_target.py > $OUT/drop.log 2>&1 &

@@ -1,0 +1,42 @@
+# Skeleton for a winget-pkgs submission (https://github.com/microsoft/winget-pkgs). winget wants three manifests
+# (version, installer, defaultLocale) under manifests/a/aksisonline/DAll/<version>/; the installer below is the
+# "portable zip" flavour. Fill the <...> parts, then validate with `winget validate --manifest <dir>` and test with
+# `winget install --manifest <dir>` (enable with `winget settings --enable LocalManifestFiles`).
+# Without an installer/signing story, SmartScreen will warn on first run; see docs/WINDOWS.md.
+
+# --- aksisonline.DAll.yaml (version manifest) ---
+PackageIdentifier: aksisonline.DAll
+PackageVersion: <1.0.0>
+DefaultLocale: en-US
+ManifestType: version
+ManifestVersion: 1.6.0
+---
+# --- aksisonline.DAll.installer.yaml ---
+PackageIdentifier: aksisonline.DAll
+PackageVersion: <1.0.0>
+InstallerType: zip
+NestedInstallerType: portable
+NestedInstallerFiles:
+  - RelativeFilePath: DAllWindows.exe
+    PortableCommandAlias: dall
+Installers:
+  - Architecture: x64
+    InstallerUrl: https://github.com/<owner>/d-all/releases/download/v<1.0.0>/D-All-<1.0.0>-windows-x64.zip
+    InstallerSha256: <SHA256 of the zip: (Get-FileHash .\D-All-<1.0.0>-windows-x64.zip).Hash>
+Dependencies:
+  PackageDependencies:
+    - PackageIdentifier: yt-dlp.yt-dlp
+    - PackageIdentifier: Gyan.FFmpeg
+ManifestType: installer
+ManifestVersion: 1.6.0
+---
+# --- aksisonline.DAll.locale.en-US.yaml ---
+PackageIdentifier: aksisonline.DAll
+PackageVersion: <1.0.0>
+PackageLocale: en-US
+Publisher: <publisher>
+PackageName: D-All
+License: <license>
+ShortDescription: Minimal media downloader: copy a link, get the file.
+ManifestType: defaultLocale
+ManifestVersion: 1.6.0

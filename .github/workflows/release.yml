@@ -1,0 +1,79 @@
+name: Release
+
+# Push a tag like v1.0.0 to build every platform and publish a GitHub release.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version (no leading v)
+        required: true
+
+permissions:
+  contents: write
+
+env:
+  VERSION: ${{ github.event.inputs.version || github.ref_name }}
+
+jobs:
+  macos:
+    name: macOS (.dmg, .zip)
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build universal app
+        run: |
+          V="${VERSION#v}"
+          ./bundle.sh --dist "$V"
+          mv "dist/Pea-$V-macOS.dmg" dist/Pea-macOS.dmg
+          mv "dist/Pea-$V-macOS.zip" dist/Pea-macOS.zip
+      - uses: actions/upload-artifact@v4
+        with: { name: macos, path: "dist/Pea-macOS.*", if-no-files-found: error }
+
+  linux:
+    name: Linux (.deb)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build .deb
+        run: |
+          V="${VERSION#v}"
+          ./scripts/package-linux.sh "$V"
+          mv dist/pea_*.deb dist/Pea-linux-amd64.deb
+      - uses: actions/upload-artifact@v4
+        with: { name: linux, path: dist/Pea-linux-amd64.deb, if-no-files-found: error }
+
+  windows:
+    name: Windows (.zip)
+    runs-on: windows-2025
+    steps:
+      - uses: actions/checkout@v4
+      - uses: SwiftyLab/setup-swift@v1
+        with: { swift-version: '6.1' }
+      - name: Build portable zip
+        shell: pwsh
+        run: |
+          $v = $env:VERSION.TrimStart('v')
+          ./scripts/package-windows.ps1 -Version $v
+          Move-Item "dist/Pea-$v-windows-x64.zip" dist/Pea-windows-x64.zip
+      - uses: actions/upload-artifact@v4
+        with: { name: windows, path: dist/Pea-windows-x64.zip, if-no-files-found: error }
+
+  publish:
+    name: Publish release
+    needs: [macos, linux, windows]
+    if: ${{ !cancelled() && (needs.macos.result == 'success' || needs.linux.result == 'success' || needs.windows.result == 'success') }}
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with: { path: out, merge-multiple: true }
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ls -la out
+          gh release create "$VERSION" out/* --title "Pea ${VERSION#v}" --generate-notes \
+            --notes-file <(printf 'Free, non-commercial and open source. Please only download what you have the right to keep (see NOTICE.md).\n')  \
+            || gh release upload "$VERSION" out/* --clobber

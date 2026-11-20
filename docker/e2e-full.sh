@@ -4,7 +4,7 @@ OUT=${1:-/shots}; URL=${2:-https://proof.ovh.net/files/10Mb.dat}
 export DISPLAY=:99 HOME=$(mktemp -d)
 mkdir -p $OUT
 pgrep Xvfb >/dev/null || { Xvfb :99 -screen 0 700x400x24 >/dev/null 2>&1 & sleep 1; }
-/build/debug/DAllLinux >$OUT/full-app.log 2>&1 &
+/build/debug/PeaLinux >$OUT/full-app.log 2>&1 &
 APP=$!
 GTK_A11Y=none python3 /src/docker/drop_target.py > $OUT/drop.log 2>&1 &
 sleep 4

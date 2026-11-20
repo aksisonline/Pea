@@ -4,7 +4,7 @@ OUT=${1:-/shots}; URL=${2:-https://www.youtube.com/watch?v=jNQXAC9IVRw}
 export DISPLAY=:99 HOME=$(mktemp -d)
 mkdir -p $OUT
 pgrep Xvfb >/dev/null || { Xvfb :99 -screen 0 700x400x24 >/dev/null 2>&1 & sleep 1; }
-/build/debug/DAllLinux >$OUT/yt-app.log 2>&1 &
+/build/debug/PeaLinux >$OUT/yt-app.log 2>&1 &
 APP=$!
 shot() { import -window root -crop 232x266+0+0 +repage $OUT/$1.png; }
 sleep 4
