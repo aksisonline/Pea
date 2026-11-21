@@ -14,7 +14,7 @@ A tiny all-in-one downloader for macOS, Windows and Linux.
 
 <a href="https://github.com/aksisonline/Pea/releases/latest/download/Pea-macOS.dmg"><img src="https://shieldcn.dev/badge/Download-macOS-22c55e.svg?logo=apple&size=lg" alt="Download for macOS" /></a>
 &nbsp;&nbsp;
-<a href="https://github.com/aksisonline/Pea/releases/latest/download/Pea-windows-x64.zip"><img src="https://shieldcn.dev/badge/Download-Windows-22c55e.svg?logo=windows&size=lg" alt="Download for Windows" /></a>
+<a href="https://github.com/aksisonline/Pea/releases/latest/download/Pea-windows-x64-setup.exe"><img src="https://shieldcn.dev/badge/Download-Windows-22c55e.svg?logo=windows&size=lg" alt="Download for Windows" /></a>
 &nbsp;&nbsp;
 <a href="https://github.com/aksisonline/Pea/releases/latest/download/Pea-linux-amd64.deb"><img src="https://shieldcn.dev/badge/Download-Linux-22c55e.svg?logo=linux&size=lg" alt="Download for Linux" /></a>
 

@@ -14,19 +14,15 @@ ManifestVersion: 1.6.0
 # --- aksisonline.Pea.installer.yaml ---
 PackageIdentifier: aksisonline.Pea
 PackageVersion: <1.0.0>
-InstallerType: zip
-NestedInstallerType: portable
-NestedInstallerFiles:
-  - RelativeFilePath: PeaWindows.exe
-    PortableCommandAlias: pea
+InstallerType: inno
+Scope: user
+InstallerSwitches:
+  Silent: /VERYSILENT /SUPPRESSMSGBOXES /NORESTART
+  SilentWithProgress: /SILENT /NORESTART
 Installers:
   - Architecture: x64
-    InstallerUrl: https://github.com/<owner>/pea/releases/download/v<1.0.0>/Pea-<1.0.0>-windows-x64.zip
-    InstallerSha256: <SHA256 of the zip: (Get-FileHash .\Pea-<1.0.0>-windows-x64.zip).Hash>
-Dependencies:
-  PackageDependencies:
-    - PackageIdentifier: yt-dlp.yt-dlp
-    - PackageIdentifier: Gyan.FFmpeg
+    InstallerUrl: https://github.com/aksisonline/Pea/releases/download/v<1.0.0>/Pea-windows-x64-setup.exe
+    InstallerSha256: <SHA256 of the setup exe: (Get-FileHash .\Pea-windows-x64-setup.exe).Hash>
 ManifestType: installer
 ManifestVersion: 1.6.0
 ---

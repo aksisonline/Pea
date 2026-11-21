@@ -52,7 +52,7 @@ $searchDirs += Get-ChildItem "$env:SystemDrive\Program Files\Swift\runtime-*\usr
 $searchDirs += Get-ChildItem "$env:SystemDrive\Library\Swift-*\*\usr\bin" -ErrorAction SilentlyContinue | ForEach-Object FullName
 if ($env:SDKROOT) { $searchDirs += Join-Path $env:SDKROOT "usr\bin" }
 # setup-swift and the swift.org installer put the runtime DLLs in version-specific folders: find them by content.
-$swiftRoots = @("$env:SystemDrive\Program Files\Swift", "$env:SystemDrive\Library", "$env:LOCALAPPDATA\Programs\Swift", "$env:SystemDrive\Users\runneradmin\AppData\Local\Programs\Swift")
+$swiftRoots = @("$env:SystemDrive\Program Files\Swift", "$env:SystemDrive\Library", "$env:SystemDrive\hostedtoolcache\windows", "$env:RUNNER_TEMP\setup-swift", "$env:LOCALAPPDATA\Programs\Swift", "$env:SystemDrive\Users\runneradmin\AppData\Local\Programs\Swift")
 $swiftRoots += (Get-Command swiftc).Source | Split-Path -Parent | Split-Path -Parent | Split-Path -Parent
 foreach ($root in $swiftRoots) {
   if (Test-Path $root) {

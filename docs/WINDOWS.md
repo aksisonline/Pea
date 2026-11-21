@@ -1,17 +1,20 @@
 # Pea on Windows
 
-Status: **not released yet.** The Windows UI (shared GTK 4 code) still has to be built against GTK for Windows and run on a real machine; the Windows release job is disabled until then. It was written and reviewed without access to a Windows machine. Everything platform-neutral is unit-tested
-(Linux, Docker); the Win32 files are only type-checked against a hand-written WinSDK stub. See "What is verified".
+Status: **released.** The installer (`Pea-windows-x64-setup.exe`, Inno Setup, per-user, light/dark wizard) and a portable zip are built
+by CI on `windows-2025` with the Swift 6.1 toolchain and prebuilt GTK 4 for Windows (wingtk/gvsbuild). The installer and app
+were smoke-tested under CrossOver (Wine): install, launch, UI render, settings file. Not yet tested on real Windows hardware.
+If the app does not start, look at `%LOCALAPPDATA%\Pea\pea.log`.
 
 ## Run / build
 
-Requirements: Windows 10 1803+ (for `curl.exe`) or 11, the Swift 6.1+ toolchain for Windows (swift.org installer, with
-Visual Studio Build Tools + Windows SDK), and `winget` (App Installer) for the first-run tool install.
+Requirements: Windows 10 1809+ or 11, the Swift 6.1+ toolchain for Windows (with Visual Studio Build Tools + Windows SDK),
+GTK 4 for Windows (`./scripts/setup-gtk-windows.ps1`) and Inno Setup 6 (for `-Installer`). yt-dlp and ffmpeg ship inside the package.
 
 ```powershell
 swift build -c release --product PeaWindows
 swift test                                   # PeaCore tests
-./scripts/package-windows.ps1 -Version 1.0.0 # dist/Pea-1.0.0-windows-x64.zip
+./scripts/setup-gtk-windows.ps1
+./scripts/package-windows.ps1 -Version 1.0.0 -Installer   # dist/Pea-1.0.0-windows-x64.zip + Pea-windows-x64-setup.exe
 ```
 
 First run installs the tools for you: `winget install --id yt-dlp.yt-dlp` and `--id Gyan.FFmpeg`. A running process never
