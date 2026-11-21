@@ -12,12 +12,20 @@ param(
   [string]$Version = "0.0.0",
   [string]$Product = "PeaWindows",
   [string[]]$ExtraDll = @(),
-  [switch]$StaticStdlib      # try `-static-stdlib`: fewer DLLs to ship, bigger exe; needs the static libs in the SDK
+  [switch]$StaticStdlib,     # try `-static-stdlib`: fewer DLLs to ship, bigger exe; needs the static libs in the SDK
+  [switch]$Installer,        # also build the Inno Setup installer (dist/Pea-<Version>-windows-x64-setup.exe)
+  [string]$GtkRoot = $(if ($env:GTK_ROOT) { $env:GTK_ROOT } else { "C:\gtk-build\gtk\x64\release" })
 )
 $ErrorActionPreference = "Stop"
 Set-Location (Split-Path $PSScriptRoot -Parent)
 
-$buildArgs = @("build", "-c", "release", "--product", $Product)
+if (-not (Test-Path "$GtkRoot\bin\gtk-4-1.dll")) { throw "GTK 4 not found at $GtkRoot - run scripts/setup-gtk-windows.ps1 first" }
+if (-not $env:PKG_CONFIG_PATH) { $env:PKG_CONFIG_PATH = "$GtkRoot\lib\pkgconfig" }
+if (-not $env:PKG_CONFIG) { $env:PKG_CONFIG = "$GtkRoot\bin\pkgconf.exe" }
+$env:PATH = "$GtkRoot\bin;$env:PATH"
+
+# GUI subsystem: no console window behind the app.
+$buildArgs = @("build", "-c", "release", "--product", $Product, "-Xlinker", "/SUBSYSTEM:WINDOWS", "-Xlinker", "/ENTRY:mainCRTStartup")
 if ($StaticStdlib) { $buildArgs += @("-Xswiftc", "-static-stdlib") }
 & swift @buildArgs
 if ($LASTEXITCODE -ne 0) { throw "swift build failed" }
@@ -40,7 +48,7 @@ if (-not $bash) { throw "bash (Git for Windows) is needed to run scripts/fetch-t
 if ($LASTEXITCODE -ne 0) { throw "fetching yt-dlp / ffmpeg failed" }
 
 # Where the Swift runtime DLLs live: next to the compiler (toolchain) and in the installer's runtime folders.
-$searchDirs = @($bin, (Split-Path (Get-Command swiftc).Source -Parent))
+$searchDirs = @($bin, "$GtkRoot\bin", (Split-Path (Get-Command swiftc).Source -Parent))
 $searchDirs += Get-ChildItem "$env:SystemDrive\Program Files\Swift\runtime-*\usr\bin" -ErrorAction SilentlyContinue | ForEach-Object FullName
 $searchDirs += Get-ChildItem "$env:SystemDrive\Library\Swift-*\*\usr\bin" -ErrorAction SilentlyContinue | ForEach-Object FullName
 if ($env:SDKROOT) { $searchDirs += Join-Path $env:SDKROOT "usr\bin" }
@@ -71,8 +79,26 @@ while ($queue.Count -gt 0) {
   foreach ($dep in Get-Imports $file) { $queue.Enqueue($dep) }
 }
 
+# GTK data the runtime looks up next to the exe: GSettings schemas, gdk-pixbuf loaders, the icon theme index.
+foreach ($rel in @("share\glib-2.0\schemas", "lib\gdk-pixbuf-2.0", "share\icons\hicolor\index.theme")) {
+  $src = Join-Path $GtkRoot $rel
+  if (Test-Path $src) {
+    $dst = Join-Path $stage $rel
+    New-Item -ItemType Directory -Force (Split-Path $dst -Parent) | Out-Null
+    Copy-Item $src $dst -Recurse -Force
+  }
+}
+
 Copy-Item "docs/WINDOWS.md" (Join-Path $stage "README.md") -ErrorAction SilentlyContinue
 $zip = Join-Path "dist" "Pea-$Version-windows-x64.zip"
 Remove-Item $zip -ErrorAction SilentlyContinue
 Compress-Archive -Path "$stage\*" -DestinationPath $zip
 Write-Host "Built $zip"
+
+if ($Installer) {
+  $iscc = (Get-Command ISCC.exe -ErrorAction SilentlyContinue).Source
+  if (-not $iscc) { $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" }
+  if (-not (Test-Path $iscc)) { throw "Inno Setup 6 (ISCC.exe) not found: choco install innosetup" }
+  & $iscc "/DAppVersion=$Version" "/DStageDir=$((Resolve-Path $stage).Path)" "/DOutDir=$((Resolve-Path dist).Path)" "packaging\windows\pea.iss"
+  if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed" }
+}

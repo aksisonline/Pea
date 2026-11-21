@@ -45,27 +45,36 @@ jobs:
         with: { name: linux, path: dist/Pea-linux-amd64.deb, if-no-files-found: error }
 
   windows:
-    name: Windows (.zip)
-    # Not shipping yet: the Windows UI hasn't been built or run on a real machine. See docs/WINDOWS.md.
-    continue-on-error: true
+    name: Windows (installer, .zip)
     runs-on: windows-2025
     steps:
       - uses: actions/checkout@v4
       - uses: SwiftyLab/setup-swift@v1
         with: { swift-version: '6.1' }
-      - name: Build portable zip
+      - name: GTK 4 for Windows
+        shell: pwsh
+        run: ./scripts/setup-gtk-windows.ps1
+      - name: Inno Setup
+        shell: pwsh
+        run: choco upgrade innosetup -y --no-progress
+      - name: Build installer and portable zip
         shell: pwsh
         run: |
           $v = $env:VERSION.TrimStart('v')
-          ./scripts/package-windows.ps1 -Version $v
+          ./scripts/package-windows.ps1 -Version $v -Installer
           Move-Item "dist/Pea-$v-windows-x64.zip" dist/Pea-windows-x64.zip
       - uses: actions/upload-artifact@v4
-        with: { name: windows, path: dist/Pea-windows-x64.zip, if-no-files-found: error }
+        with:
+          name: windows
+          path: |
+            dist/Pea-windows-x64.zip
+            dist/Pea-windows-x64-setup.exe
+          if-no-files-found: error
 
   publish:
     name: Publish release
     needs: [macos, linux, windows]
-    if: ${{ !cancelled() && needs.macos.result == 'success' && needs.linux.result == 'success' }}
+    if: ${{ !cancelled() && needs.macos.result == 'success' && needs.linux.result == 'success' && needs.windows.result == 'success' }}
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4

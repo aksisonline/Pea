@@ -89,7 +89,7 @@ public final class WindowsTray: TrayIcon {
 
     fileprivate func handle(_ msg: UINT, _ wParam: WPARAM, _ lParam: LPARAM) {
         if msg == Self.callbackMessage {
-            switch UInt(bitPattern: lParam) & 0xFFFF {     // version-0 callback: lParam is the mouse message
+            switch UInt(bitPattern: Int(lParam)) & 0xFFFF {     // version-0 callback: lParam is the mouse message
             case Self.wmLButtonUp: onToggle?()
             case Self.wmRButtonUp, Self.wmContextMenu: onSecondaryClick?()
             default: break
@@ -103,7 +103,7 @@ public final class WindowsTray: TrayIcon {
 
     private static func makeIcon(lit: Bool) -> HICON? {
         let size = 32
-        var pixels = TrayGlyph.bgra(size: size, lit: lit)
+        let pixels = TrayGlyph.bgra(size: size, lit: lit)
         var bmi = BITMAPINFO()
         bmi.bmiHeader.biSize = DWORD(MemoryLayout<BITMAPINFOHEADER>.size)
         bmi.bmiHeader.biWidth = LONG(size)
