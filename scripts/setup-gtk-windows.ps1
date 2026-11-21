@@ -1,7 +1,7 @@
 <#
 .SYNOPSIS
   Installs the prebuilt GTK 4 for Windows (wingtk/gvsbuild, MSVC ABI) that PeaUI links against, and exports
-  PKG_CONFIG / PKG_CONFIG_PATH / PATH for the rest of the CI job (and prints them for local use).
+  GTK_ROOT / PATH for the rest of the CI job (and prints them for local use).
 .NOTES
   The .pc files in that bundle hard-code the prefix C:/gtk-build/gtk/x64/release, so that is where it must live.
 #>
@@ -16,19 +16,10 @@ if (-not (Test-Path "$root\bin\gtk-4-1.dll")) {
   Expand-Archive $zip -DestinationPath $root -Force
   Remove-Item $zip
 }
-# SwiftPM's own .pc parser trips over the drive-letter colon in "prefix=C:/..." : make every file relocatable.
-Get-ChildItem "$root\lib\pkgconfig\*.pc" | ForEach-Object {
-  $t = Get-Content $_.FullName -Raw
-  $n = $t -replace '(?m)^prefix=C:/gtk-build/gtk/x64/release\s*$', 'prefix=${pcfiledir}/../..'
-  if ($n -ne $t) { [IO.File]::WriteAllText($_.FullName, $n) }
-}
-$env:PKG_CONFIG = "$root\bin\pkgconf.exe"
-$env:PKG_CONFIG_PATH = "$root\lib\pkgconfig"
+$env:GTK_ROOT = $root
 $env:PATH = "$root\bin;$env:PATH"
 if ($env:GITHUB_ENV) {
-  "PKG_CONFIG=$root\bin\pkgconf.exe" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
-  "PKG_CONFIG_PATH=$root\lib\pkgconfig" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
   "GTK_ROOT=$root" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
   "$root\bin" | Out-File -Append -Encoding utf8 $env:GITHUB_PATH
 }
-& $env:PKG_CONFIG --modversion gtk4
+Write-Host "GTK ready at $root"

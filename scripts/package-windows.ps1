@@ -20,8 +20,7 @@ $ErrorActionPreference = "Stop"
 Set-Location (Split-Path $PSScriptRoot -Parent)
 
 if (-not (Test-Path "$GtkRoot\bin\gtk-4-1.dll")) { throw "GTK 4 not found at $GtkRoot - run scripts/setup-gtk-windows.ps1 first" }
-if (-not $env:PKG_CONFIG_PATH) { $env:PKG_CONFIG_PATH = "$GtkRoot\lib\pkgconfig" }
-if (-not $env:PKG_CONFIG) { $env:PKG_CONFIG = "$GtkRoot\bin\pkgconf.exe" }
+$env:GTK_ROOT = $GtkRoot
 $env:PATH = "$GtkRoot\bin;$env:PATH"
 
 # GUI subsystem: no console window behind the app.
