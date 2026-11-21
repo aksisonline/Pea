@@ -13,7 +13,7 @@ public final class PeaUIApp {
     /// The shell sets this once it has a tray / status icon; it enables the window<->tray toggle.
     public var trayAvailable = false { didSet { trayChanged() } }
     /// True when the user chose tray mode: closing or toggling hides the window instead of quitting.
-    public private(set) var trayMode = UserDefaults.standard.bool(forKey: "menuBarMode")
+    public private(set) var trayMode = AppSettings.store.bool("menuBarMode")
 
     private var observers: [() -> Void] = []
     let scene = Scene()
@@ -53,7 +53,7 @@ public final class PeaUIApp {
     func setTrayMode(_ on: Bool) {
         guard on == false || trayAvailable else { return }
         trayMode = on
-        UserDefaults.standard.set(on, forKey: "menuBarMode")
+        AppSettings.store.set(on, for: "menuBarMode")
         scene.trayMode = on
         if on { hideWindow() } else { showWindow() }
         scene.requestFrame()
