@@ -80,7 +80,7 @@ func makeLayout(_ cr: Cr, _ s: String, size: Double, weight: Weight = .regular, 
     let layout = pango_cairo_create_layout(cr)!
     let fd = pango_font_description_new()!
     pango_font_description_set_family(fd, mono ? monoFamilies : sansFamilies)
-    pango_font_description_set_weight(fd, PangoWeight(rawValue: weight.rawValue))
+    pango_font_description_set_weight(fd, PangoWeight(rawValue: .init(truncatingIfNeeded: weight.rawValue)))
     pango_font_description_set_absolute_size(fd, size * 1024)
     pango_layout_set_font_description(layout, fd)
     pango_font_description_free(fd)

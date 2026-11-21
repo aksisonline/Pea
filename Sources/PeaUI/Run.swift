@@ -159,7 +159,7 @@ extension PeaUIApp {
         // --- Keyboard: Esc resets, Ctrl+V pastes, Ctrl+Q quits
         let keys = gtk_event_controller_key_new()!
         gtk_event_controller_set_propagation_phase(op(keys), GTK_PHASE_CAPTURE)
-        let ctrlMask = GDK_CONTROL_MASK.rawValue
+        let ctrlMask = UInt32(truncatingIfNeeded: GDK_CONTROL_MASK.rawValue)
         let clipboard = services.clipboard as? GTKClipboard
         connect(keys, "key-pressed", thunk: thunkKey, handler: { key, state in
             if key == 0xff1b { model.reset(); return true }                              // Escape
@@ -258,9 +258,9 @@ private func readDrop(_ drop: Ptr, _ done: @escaping (String) -> Void) {
                 guard let gb = g_input_stream_read_bytes_finish(stream, r, nil) else {
                     gdk_drop_finish(op(drop), GdkDragAction(rawValue: 0)); return
                 }
-                var n = 0
+                var n: gsize = 0
                 let p = g_bytes_get_data(gb, &n)
-                var text = p.map { String(decoding: UnsafeRawBufferPointer(start: $0, count: n), as: UTF8.self) } ?? ""
+                var text = p.map { String(decoding: UnsafeRawBufferPointer(start: $0, count: Int(n)), as: UTF8.self) } ?? ""
                 g_bytes_unref(gb)
                 gdk_drop_finish(op(drop), GDK_ACTION_COPY)
                 if m == "text/uri-list" {

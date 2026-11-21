@@ -65,7 +65,7 @@ typealias VDrop = (Ptr) -> Bool
 let thunkDrop: @convention(c) (Ptr?, Ptr?, Double, Double, Ptr?) -> gboolean = { _, drop, _, _, u in
     unbox(u, VDrop.self)(drop!) ? 1 : 0
 }
-let thunkDragAction: @convention(c) (Ptr?, Ptr?, Double, Double, Ptr?) -> UInt32 = { _, _, _, _, _ in GDK_ACTION_COPY.rawValue }
+let thunkDragAction: @convention(c) (Ptr?, Ptr?, Double, Double, Ptr?) -> UInt32 = { _, _, _, _, _ in UInt32(truncatingIfNeeded: GDK_ACTION_COPY.rawValue) }
 
 /// Runs `f` once after `ms` milliseconds on the GLib main loop.
 func after(ms: UInt32, _ f: @escaping () -> Void) {
@@ -100,9 +100,19 @@ public enum GTKRuntime {
         if started { return true }
         g_set_prgname("pea")
         g_set_application_name("Pea")
-        setenv("GTK_THEME", "Adwaita:dark", 0)
-        setenv("GTK_A11Y", "none", 0)     // no AT-SPI bus needed; silences warnings on minimal systems
+        setEnvDefault("GTK_THEME", "Adwaita:dark")
+        setEnvDefault("GTK_A11Y", "none")     // no AT-SPI bus needed; silences warnings on minimal systems
         started = gtk_init_check() != 0
         return started
     }
+}
+
+/// `setenv(name, value, 0)`: set only when not already set. (Windows' C runtime has no setenv.)
+func setEnvDefault(_ name: String, _ value: String) {
+    if getenv(name) != nil { return }
+    #if os(Windows)
+    _ = _putenv_s(name, value)
+    #else
+    setenv(name, value, 0)
+    #endif
 }
