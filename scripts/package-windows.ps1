@@ -52,10 +52,18 @@ $searchDirs += Get-ChildItem "$env:SystemDrive\Program Files\Swift\runtime-*\usr
 $searchDirs += Get-ChildItem "$env:SystemDrive\Library\Swift-*\*\usr\bin" -ErrorAction SilentlyContinue | ForEach-Object FullName
 if ($env:SDKROOT) { $searchDirs += Join-Path $env:SDKROOT "usr\bin" }
 # setup-swift and the swift.org installer put the runtime DLLs in version-specific folders: find them by content.
-foreach ($root in @("$env:SystemDrive\Program Files\Swift", "$env:SystemDrive\Library", "$env:LOCALAPPDATA\Programs\Swift")) {
+$swiftRoots = @("$env:SystemDrive\Program Files\Swift", "$env:SystemDrive\Library", "$env:LOCALAPPDATA\Programs\Swift", "$env:SystemDrive\Users\runneradmin\AppData\Local\Programs\Swift")
+$swiftRoots += (Get-Command swiftc).Source | Split-Path -Parent | Split-Path -Parent | Split-Path -Parent
+foreach ($root in $swiftRoots) {
   if (Test-Path $root) {
     $searchDirs += Get-ChildItem $root -Recurse -Filter "swiftCore.dll" -ErrorAction SilentlyContinue | ForEach-Object { $_.Directory.FullName }
     $searchDirs += Get-ChildItem $root -Recurse -Filter "Foundation.dll" -ErrorAction SilentlyContinue | ForEach-Object { $_.Directory.FullName }
+  }
+}
+if (-not ($searchDirs | Where-Object { Test-Path (Join-Path $_ "swiftCore.dll") })) {
+  Write-Host "swiftCore.dll not found in known places; searching the drives..."
+  foreach ($drv in @("C:\", "D:\")) {
+    Get-ChildItem $drv -Recurse -Filter swiftCore.dll -ErrorAction SilentlyContinue | ForEach-Object { Write-Host "  found: $($_.FullName)"; $searchDirs += $_.Directory.FullName }
   }
 }
 $searchDirs = $searchDirs | Where-Object { $_ -and (Test-Path $_) } | Select-Object -Unique
