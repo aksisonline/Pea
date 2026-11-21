@@ -51,6 +51,13 @@ $searchDirs = @($bin, "$GtkRoot\bin", (Split-Path (Get-Command swiftc).Source -P
 $searchDirs += Get-ChildItem "$env:SystemDrive\Program Files\Swift\runtime-*\usr\bin" -ErrorAction SilentlyContinue | ForEach-Object FullName
 $searchDirs += Get-ChildItem "$env:SystemDrive\Library\Swift-*\*\usr\bin" -ErrorAction SilentlyContinue | ForEach-Object FullName
 if ($env:SDKROOT) { $searchDirs += Join-Path $env:SDKROOT "usr\bin" }
+# setup-swift and the swift.org installer put the runtime DLLs in version-specific folders: find them by content.
+foreach ($root in @("$env:SystemDrive\Program Files\Swift", "$env:SystemDrive\Library", "$env:LOCALAPPDATA\Programs\Swift")) {
+  if (Test-Path $root) {
+    $searchDirs += Get-ChildItem $root -Recurse -Filter "swiftCore.dll" -ErrorAction SilentlyContinue | ForEach-Object { $_.Directory.FullName }
+    $searchDirs += Get-ChildItem $root -Recurse -Filter "Foundation.dll" -ErrorAction SilentlyContinue | ForEach-Object { $_.Directory.FullName }
+  }
+}
 $searchDirs = $searchDirs | Where-Object { $_ -and (Test-Path $_) } | Select-Object -Unique
 
 # Transitive closure of imported DLLs that we can find in those folders (Windows' own DLLs aren't there, so they're skipped).
@@ -92,6 +99,9 @@ Copy-Item "docs/WINDOWS.md" (Join-Path $stage "README.md") -ErrorAction Silently
 $zip = Join-Path "dist" "Pea-$Version-windows-x64.zip"
 Remove-Item $zip -ErrorAction SilentlyContinue
 Compress-Archive -Path "$stage\*" -DestinationPath $zip
+foreach ($must in @("swiftCore.dll", "Foundation.dll", "gtk-4-1.dll")) {
+  if (-not (Test-Path (Join-Path $stage $must))) { throw "$must was not bundled (searched: $($searchDirs -join '; '))" }
+}
 Write-Host "Built $zip"
 
 if ($Installer) {
