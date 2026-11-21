@@ -267,7 +267,7 @@ private func readDrop(_ drop: Ptr, _ done: @escaping (String) -> Void) {
                     text = text.split(whereSeparator: \.isNewline).map(String.init).first { !$0.hasPrefix("#") } ?? ""
                 } else if m == "text/x-moz-url" {
                     // UTF-16: "url\ntitle"; fall back to a plain decode when it was sent as UTF-8.
-                    let bytes = p.map { Data(bytes: $0, count: n) } ?? Data()
+                    let bytes = p.map { Data(bytes: $0, count: Int(n)) } ?? Data()
                     let s16 = String(data: bytes, encoding: .utf16) ?? text
                     text = s16.split(whereSeparator: \.isNewline).map(String.init).first ?? ""
                 }
