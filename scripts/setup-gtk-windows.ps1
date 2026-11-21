@@ -16,6 +16,12 @@ if (-not (Test-Path "$root\bin\gtk-4-1.dll")) {
   Expand-Archive $zip -DestinationPath $root -Force
   Remove-Item $zip
 }
+# SwiftPM's own .pc parser trips over the drive-letter colon in "prefix=C:/..." : make every file relocatable.
+Get-ChildItem "$root\lib\pkgconfig\*.pc" | ForEach-Object {
+  $t = Get-Content $_.FullName -Raw
+  $n = $t -replace '(?m)^prefix=C:/gtk-build/gtk/x64/release\s*$', 'prefix=${pcfiledir}/../..'
+  if ($n -ne $t) { [IO.File]::WriteAllText($_.FullName, $n) }
+}
 $env:PKG_CONFIG = "$root\bin\pkgconf.exe"
 $env:PKG_CONFIG_PATH = "$root\lib\pkgconfig"
 $env:PATH = "$root\bin;$env:PATH"
