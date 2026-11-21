@@ -119,7 +119,15 @@ extension PeaUIApp {
 
         // --- Pointer
         let motion = gtk_event_controller_motion_new()!
+        var filePress: (x: Double, y: Double)?      // Windows: a press on the finished file that may turn into a native drag
         connect(motion, "motion", thunk: thunkXY, handler: { x, y in
+            if let p = filePress, hypot(x - p.x, y - p.y) > 6 {
+                filePress = nil
+                if let f = scene.dragFile(p.x, p.y), let dragOut = PlatformHooks.fileDragOut {
+                    if dragOut(f.url) { after(ms: 400) { model.reset() } }
+                    return
+                }
+            }
             scene.pointerMoved(x, y)
             gtk_widget_set_cursor_from_name(area, scene.interactive(scene.currentHit) || scene.currentHit == .file ? "pointer" : nil)
         } as VXY)
@@ -132,7 +140,10 @@ extension PeaUIApp {
         var pressed = Hit.none
         connect(click, "pressed", thunk: thunkPress, handler: { _, x, y, gesture in
             pressed = scene.hit(x, y)
-            if pressed == .file { return }                         // the drag source owns this one
+            if pressed == .file {                                  // the drag source owns this one
+                if PlatformHooks.fileDragOut != nil { filePress = (x, y) }
+                return
+            }
             if !scene.interactive(pressed) {                        // empty background: drag the window
                 let ctrl = op(gesture)
                 if let surf = gtk_native_get_surface(op(win)),
@@ -145,6 +156,7 @@ extension PeaUIApp {
         } as VPress)
         connect(click, "released", thunk: thunkPress, handler: { _, x, y, _ in
             let h = scene.hit(x, y)
+            filePress = nil
             if h == pressed, scene.interactive(h) { scene.click(h) }
             pressed = .none
         } as VPress)
@@ -177,6 +189,7 @@ extension PeaUIApp {
         gtk_widget_add_controller(win, op(keys))
 
         // --- Drag the finished file OUT (move only)
+        #if !os(Windows)
         let drag = gtk_drag_source_new()!
         gtk_drag_source_set_actions(drag, GDK_ACTION_MOVE)
         var dragging: FileThumb?
@@ -198,6 +211,8 @@ extension PeaUIApp {
             if moved { after(ms: 400) { model.reset() } }
         } as VDragEnd)
         gtk_widget_add_controller(area, op(drag))
+
+        #endif
 
         // --- Drop a link / text onto the window
         let builder = gdk_content_formats_builder_new()!

@@ -116,3 +116,10 @@ func setEnvDefault(_ name: String, _ value: String) {
     setenv(name, value, 0)
     #endif
 }
+
+/// Hooks a platform shell can install before `runPea`.
+public enum PlatformHooks {
+    /// Windows: starts a native (modal) file drag for a finished download; returns true when the file was moved away.
+    /// When set, the GTK drag source is not used (GTK 4's Windows drag source crashes).
+    @MainActor public static var fileDragOut: ((URL) -> Bool)?
+}

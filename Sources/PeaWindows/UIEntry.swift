@@ -20,6 +20,7 @@ import PeaUI
 
 @MainActor
 func launchSharedUI(services: PlatformServices) {
+    PlatformHooks.fileDragOut = { WindowsDrag.dragOut($0) }
     runPea(services: services)
 }
 #else
