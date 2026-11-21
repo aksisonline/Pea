@@ -13,7 +13,7 @@ public func runPea(services: PlatformServices) {
 @MainActor
 public func runPea(services: PlatformServices, onReady: (PeaUIApp) -> Void) {
     guard GTKRuntime.ensureInit() else {
-        FileHandle.standardError.write(Data("Pea: could not open a display (is DISPLAY / WAYLAND_DISPLAY set?)\n".utf8))
+        FileHandle.standardError.write(Data("Pea: could not initialise GTK / open a display (is DISPLAY / WAYLAND_DISPLAY set?)\n".utf8))
         return
     }
     Artwork.sampler = { data in await Task.detached { Pix.sample(data) }.value }
